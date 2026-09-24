@@ -1421,5 +1421,28 @@
       "noaaLocal": "static/tiles/noaa/NOAA-662-1596.png",
       "usgsLocal": "static/tiles/usgs/USGS-662-1596.png"
     }
+  ],
+  "patches": [
+    {
+      "name": "homerange",
+      "zoom": 14,
+      "bbox": [
+        37.045,
+        -122.16,
+        37.195,
+        -121.965
+      ],
+      "xRange": [
+        2632,
+        2641
+      ],
+      "yRange": [
+        6366,
+        6374
+      ],
+      "terrainDir": "static/tiles/terrain14",
+      "usgsDir": "static/tiles/usgs14",
+      "tiles": 90
+    }
   ]
 }

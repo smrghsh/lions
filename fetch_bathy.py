@@ -18,7 +18,8 @@ Usage:
   python fetch_bathy.py [mode] [--origin lat,lon] [--zoom z]
 
 Modes:
-  all (default) - Download every layer
+  all (default) - Download every layer, then the detail patches
+  patches       - Only the detail patches (PATCHES below)
   terrain       - Only the terrarium height tiles
   noaa          - Only the NOAA hillshade tiles
   usgs          - Only the USGS imagery tiles
@@ -55,6 +56,20 @@ DX_MIN, DX_MAX = -4, 3
 
 # Y offset range (relative to origin tile)
 DY_MIN, DY_MAX = -4, 3
+
+# Detail patches: finer tile grids nested inside the base grid. Each is
+# fetched into its own directories and rendered by the app as a higher
+# resolution "patch" on top of the base terrain (Topobath.addPatch).
+# The first one covers puma 164M's 5 minute home range.
+PATCHES = [
+    {
+        "name": "homerange",
+        "zoom": 14,                      # terrarium ~7.6 m/px here
+        "bbox": (37.045, -122.16, 37.195, -121.965),  # south, west, north, east
+        "terrain_dir": Path("static/tiles/terrain14"),
+        "usgs_dir": Path("static/tiles/usgs14"),     # z15 imagery, 2x2 -> 512 px
+    },
+]
 
 # Download settings
 CONCURRENCY = 8
@@ -157,6 +172,35 @@ def compute_tile_manifest(origin, zoom, dx_min, dx_max, dy_min, dy_max):
     return manifest
 
 
+def compute_patch_manifest(patch):
+    """Tiles covering a lat/lon bbox at the patch zoom (terrain + USGS only)."""
+    south, west, north, east = patch["bbox"]
+    zoom = patch["zoom"]
+    x0, y0 = lat_long_to_tile(north, west, zoom)  # top-left
+    x1, y1 = lat_long_to_tile(south, east, zoom)  # bottom-right
+    manifest = []
+    for x in range(x0, x1 + 1):
+        for y in range(y0, y1 + 1):
+            w, s_, e, n = tile_bounds(x, y, zoom)
+            manifest.append(
+                {
+                    "z": zoom,
+                    "x": x,
+                    "y": y,
+                    "bounds": {"west": w, "south": s_, "east": e, "north": n},
+                    "terrainUrl": TERRAIN_URL_TEMPLATE.format(z=zoom, x=x, y=y),
+                    "usgsUrls": [
+                        USGS_URL_TEMPLATE.format(z=zoom + 1, x=2 * x + i, y=2 * y + j)
+                        for j in (0, 1)
+                        for i in (0, 1)
+                    ],
+                    "terrainLocal": str(patch["terrain_dir"] / f"Terrarium-{x}-{y}.png"),
+                    "usgsLocal": str(patch["usgs_dir"] / f"USGS-{x}-{y}.jpg"),
+                }
+            )
+    return manifest
+
+
 def write_manifest(manifest, manifest_path):
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     xs = [e["x"] for e in manifest]
@@ -167,7 +211,24 @@ def write_manifest(manifest, manifest_path):
         "xRange": [min(xs), max(xs)],
         "yRange": [min(ys), max(ys)],
         "tiles": manifest,
+        "patches": [],
     }
+    for patch in PATCHES:
+        pm = compute_patch_manifest(patch)
+        pxs = [e["x"] for e in pm]
+        pys = [e["y"] for e in pm]
+        doc["patches"].append(
+            {
+                "name": patch["name"],
+                "zoom": patch["zoom"],
+                "bbox": patch["bbox"],
+                "xRange": [min(pxs), max(pxs)],
+                "yRange": [min(pys), max(pys)],
+                "terrainDir": str(patch["terrain_dir"]),
+                "usgsDir": str(patch["usgs_dir"]),
+                "tiles": len(pm),
+            }
+        )
     with open(manifest_path, "w") as f:
         json.dump(doc, f, indent=2)
     print(f"✓ Manifest written to {manifest_path}")
@@ -235,7 +296,10 @@ def download_usgs_stitched(urls, output_path):
         i, j = idx % 2, idx // 2
         canvas.paste(img, (i * 256, j * 256))
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(output_path, "PNG", optimize=True)
+    if output_path.suffix.lower() in (".jpg", ".jpeg"):
+        canvas.save(output_path, "JPEG", quality=85, optimize=True)  # imagery: lossy is fine
+    else:
+        canvas.save(output_path, "PNG", optimize=True)
     return True
 
 
@@ -244,7 +308,7 @@ def build_tasks(manifest, mode):
     for e in manifest:
         if mode in ("all", "terrain") and should_download(Path(e["terrainLocal"])):
             tasks.append(("terrain", e["terrainUrl"], Path(e["terrainLocal"])))
-        if mode in ("all", "noaa") and should_download(Path(e["noaaLocal"])):
+        if mode in ("all", "noaa") and "noaaLocal" in e and should_download(Path(e["noaaLocal"])):
             tasks.append(("noaa", e["noaaUrl"], Path(e["noaaLocal"])))
         if mode in ("all", "usgs") and should_download(Path(e["usgsLocal"])):
             tasks.append(("usgs", e["usgsUrls"], Path(e["usgsLocal"])))
@@ -333,7 +397,7 @@ def main():
         "mode",
         nargs="?",
         default="all",
-        choices=["all", "terrain", "noaa", "usgs", "manifest", "list"],
+        choices=["all", "terrain", "noaa", "usgs", "patches", "manifest", "list"],
     )
     parser.add_argument("--origin", type=str, help='Override origin as "lat,lon"')
     parser.add_argument("--zoom", type=int, help="Override tile zoom level")
@@ -364,9 +428,25 @@ def main():
         print("✓ Manifest generated. Run with 'all', 'terrain', 'noaa' or 'usgs' to download tiles.")
         return
 
+    if args.mode == "patches":
+        for patch in PATCHES:
+            pm = compute_patch_manifest(patch)
+            print(f"Patch '{patch['name']}': z{patch['zoom']}, {len(pm)} tiles")
+            if not download_tiles(pm, "all"):
+                print("\n✗ Some patch tiles failed to download.")
+                sys.exit(1)
+        print("\n✓ Patch tiles downloaded.")
+        return
+
     if not download_tiles(manifest, args.mode):
         print("\n✗ Some tiles failed to download. Check errors above.")
         sys.exit(1)
+    for patch in PATCHES:
+        pm = compute_patch_manifest(patch)
+        print(f"Patch '{patch['name']}': z{patch['zoom']}, {len(pm)} tiles")
+        if not download_tiles(pm, "all"):
+            print("\n✗ Some patch tiles failed to download.")
+            sys.exit(1)
     print("\n✓ All tiles downloaded successfully!")
     print("Vite serves static/ at '/', so ./tiles/... resolves in the app.")
 

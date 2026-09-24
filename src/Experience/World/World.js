@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Environment } from "../brahma/Brahma.js";
 import Experience from "../Experience.js";
-import Topobath from "./Topobath.js";
+import Topobath, { HOMERANGE_PATCH } from "./Topobath.js";
 import LionPath from "./LionPath.js";
 import SeaLevelPlane from "./SeaLevelPlane.js";
 import Sky from "./Sky.js";
@@ -24,6 +24,8 @@ export default class World {
 
     this.resources.on("ready", () => {
       this.topobath = new Topobath();
+      // z14 terrain + z15 imagery nested over the 5 min home range
+      this.topobath.addPatch(HOMERANGE_PATCH);
       this.topobath.ready.then(() => {
         console.log("topobath promise resolved");
         this.loadLionPaths();

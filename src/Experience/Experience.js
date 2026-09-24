@@ -31,6 +31,9 @@ export default class Experience extends EventEmitter {
     window.experience = this;
 
     this.canvas = canvas;
+    // Phones, tablets and standalone headsets: lighter meshes and textures
+    this.lowPower =
+      window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900;
     this.debug = new Debug();
     // start the lil-gui debug panel folded to its title bar
     if (this.debug.active) this.debug.ui.close();
@@ -226,13 +229,28 @@ export default class Experience extends EventEmitter {
     // reads XR hand joints only, never the controller gamepads.
     this.handLocomotion = new HandLocomotion();
     this.renderer.instance.xr.enabled = true;
-    document.body.appendChild(
-      VRButton.createButton(this.renderer.instance, {
-        // optional: Quest with controllers behaves exactly as before; hands
-        // only get joints on devices that grant it (Vision Pro, Quest w/o controllers)
-        optionalFeatures: ["hand-tracking"],
-      })
-    );
+    const vrButton = VRButton.createButton(this.renderer.instance, {
+      // optional: Quest with controllers behaves exactly as before; hands
+      // only get joints on devices that grant it (Vision Pro, Quest w/o controllers)
+      optionalFeatures: ["hand-tracking"],
+    });
+    document.body.appendChild(vrButton);
+    // three renders "VR NOT SUPPORTED" / a "WEBXR NOT AVAILABLE" link on
+    // devices without XR; hide those outright, keep ENTER VR on headsets.
+    const hideIfUnsupported = () => {
+      if (
+        vrButton.tagName === "A" ||
+        /NOT (SUPPORTED|AVAILABLE|ALLOWED)/i.test(vrButton.textContent || "")
+      ) {
+        vrButton.style.display = "none";
+      }
+    };
+    hideIfUnsupported();
+    new MutationObserver(hideIfUnsupported).observe(vrButton, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
 
     // The rig only moves for XR sessions: on desktop the OrbitControls
     // orbit the camera's local position, so an offset group would skew them.
