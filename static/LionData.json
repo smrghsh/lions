@@ -1,0 +1,30 @@
+[
+  {
+    "dataset": "164M-5min",
+    "animal_id": "164M",
+    "sex": "M",
+    "color": "#1976d2",
+    "resolution": "5min",
+    "fixes": 18838,
+    "start": "2025-03-28 07:16:00",
+    "end": "2025-06-03 01:00:00",
+    "files": [
+      "164M-5min-A"
+    ],
+    "source": "puma_gps_22-Dec-2024_to_27-Jul-2026-5min.csv"
+  },
+  {
+    "dataset": "164M-4hr",
+    "animal_id": "164M",
+    "sex": "M",
+    "color": "#1976d2",
+    "resolution": "4hr",
+    "fixes": 2492,
+    "start": "2024-12-22 10:00:00",
+    "end": "2026-07-27 05:00:00",
+    "files": [
+      "164M-4hr-A"
+    ],
+    "source": "puma_gps_22-Dec-2024_to_27-Jul-2026_4hr.csv"
+  }
+]

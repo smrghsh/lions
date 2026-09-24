@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta property="og:title" content="Lions of the Santa Cruz Mountains" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://smrghsh.github.io/lions/" />
+    <title>Lions</title>
+
+    <link rel="icon" href="./xrss.ico" />
+  </head>
+  <body>
+    <h1
+      id="loading"
+      style="
+        position: absolute;
+        color: white;
+        margin: 1em;
+        font-family: sans-serif;
+      "
+    >
+      loading...
+    </h1>
+
+    <canvas class="webgl"></canvas>
+    <div id="legend"></div>
+    <div id="graphs-2d-container">
+      <canvas id="graph-elevation" width="200" height="100"></canvas>
+      <canvas id="graph-speed" width="200" height="100"></canvas>
+      <canvas id="graph-step" width="200" height="100"></canvas>
+    </div>
+
+    <div id="panel">
+      <div class="panel-title">Puma 164M · Santa Cruz Mountains</div>
+      <div class="panel-hint">
+        Click a cube or track for its callout · ← → scrub fixes · drag to orbit
+      </div>
+
+      <div class="panel-section">
+        <label class="panel-row">
+          <span>Track colour</span>
+          <select id="color-mode">
+            <option value="state">Movement state</option>
+            <option value="speed">Speed (km/h)</option>
+          </select>
+        </label>
+        <div id="key"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Tracks</div>
+        <label><input type="checkbox" id="track-164M-4hr" checked /> 4 hr fixes (Dec 2024 – Jul 2026)</label>
+        <label><input type="checkbox" id="track-164M-5min" checked /> 5 min fixes (Mar – Jun 2025)</label>
+        <label><input type="checkbox" id="layer-voxels" checked /> Cube at every fix</label>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Terrain layers</div>
+        <label><input type="checkbox" id="layer-satellite" /> Satellite imagery (USGS NAIP)</label>
+        <label><input type="checkbox" id="layer-hillshade" /> NOAA topo-bathy hillshade</label>
+        <label><input type="checkbox" id="layer-relief" /> Relief shading</label>
+        <label><input type="checkbox" id="layer-contours" /> Contours (100 m)</label>
+        <label><input type="checkbox" id="layer-sea" /> Sea tint</label>
+        <label><input type="checkbox" id="layer-rest" /> Rest-site probability</label>
+      </div>
+    </div>
+    <script type="module" src="./script.js"></script>
+    <script></script>
+  </body>
+</html>
