@@ -138,6 +138,10 @@ export default class LionPath {
       this.voxels = new FixVoxels(this);
       this.experience.world.scene.add(this.voxels);
 
+      // honour the dataset's default checkbox state
+      const world = this.experience.world;
+      this.setVisible(world.datasetVisibility?.[this.dataset] !== false);
+
       return this;
     });
   }

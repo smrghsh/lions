@@ -54,7 +54,7 @@ export default class Topobath {
       relief: true, // slope-based shading in the shader
       contours: false, // 100 m contour lines
       sea: true, // tint below sea level
-      rest: false, // rest-site probability overlay (RestMap)
+      rest: true, // rest-site probability overlay (RestMap)
     };
 
     // Mercator ground resolution at the grid's centre latitude, in metres

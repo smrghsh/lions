@@ -109,9 +109,47 @@ export default class Experience extends EventEmitter {
       this.pointer.setSource("camera", { camera: this.camera.instance, mouse });
     });
 
-    window.addEventListener("click", () => {
+    window.addEventListener("click", (event) => {
+      // touch taps are handled below (no mousemove precedes them)
+      if (this._lastTapTime && Date.now() - this._lastTapTime < 500) return;
       this.pointer.select();
     });
+
+    // Tap-to-select for touch screens: OrbitControls owns the drag, so only
+    // a short, still touch counts as a tap. Aim the pointer at the touch
+    // point, hover once to find the hit, then select.
+    let touchStart = null;
+    window.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (event.pointerType !== "touch") return;
+        touchStart = { x: event.clientX, y: event.clientY, t: Date.now() };
+      },
+      { passive: true }
+    );
+    window.addEventListener(
+      "pointerup",
+      (event) => {
+        if (event.pointerType !== "touch" || !touchStart || !this.camera) return;
+        const moved = Math.hypot(
+          event.clientX - touchStart.x,
+          event.clientY - touchStart.y
+        );
+        const held = Date.now() - touchStart.t;
+        touchStart = null;
+        if (moved > 12 || held > 400) return;
+        if (event.target.closest?.("#panel, .lil-gui, button")) return;
+        const mouse = new THREE.Vector2(
+          (event.clientX / window.innerWidth) * 2 - 1,
+          -(event.clientY / window.innerHeight) * 2 + 1
+        );
+        this.pointer.setSource("camera", { camera: this.camera.instance, mouse });
+        this.pointer.hover();
+        this.pointer.select();
+        this._lastTapTime = Date.now();
+      },
+      { passive: true }
+    );
 
     // Arrow key navigation for callout (similar to joystick scrubbing)
     this.arrowKeyLastScrubTime = 0;
@@ -226,6 +264,28 @@ export default class Experience extends EventEmitter {
     this.time.on("tick", () => {
       this.update();
     });
+  }
+
+  /**
+   * Frame a world-space Box3: orbit target on its centre, camera pulled
+   * back along a south-west, elevated direction far enough to see it all,
+   * and the XR start pose hovering over the same centre.
+   */
+  frameBox(box) {
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const radius = Math.max(size.x, size.z) / 2 || 5;
+    const fov = (this.camera.instance.fov * Math.PI) / 180;
+    const distance = (radius / Math.tan(fov / 2)) * 0.95;
+    const direction = new THREE.Vector3(-0.45, 0.6, 0.7).normalize();
+    this.camera.controls.target.copy(center);
+    this.camera.instance.position.copy(center).addScaledVector(direction, distance);
+    this.camera.controls.update();
+    this.xrStartPosition.set(center.x, center.y + 1.8, center.z + radius * 0.6);
+    this.controller.locomotion.floors = [
+      this.xrStartPosition.y,
+      this.xrStartPosition.y + 3,
+    ];
   }
 
   /** Continuous colour for a speed in km/h (viridis, clamped to speedColorMax). */

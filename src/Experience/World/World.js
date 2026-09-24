@@ -73,15 +73,22 @@ export default class World {
           .join(", ")
     );
 
+    // Which datasets start visible: the 5 min home-range track is the
+    // story, the 4 hr track is a toggle.
+    this.datasetVisibility = { "164M-4hr": false, "164M-5min": true };
+    this.focusDataset = "164M-5min";
+
     // Rest-site probability surface needs every track parsed first
     Promise.all(this.lionPaths.map((p) => p.ready)).then(() => {
       this.restMap = new RestMap(this.lionPaths);
+      this.frameDataset(this.focusDataset);
     });
 
     // Add debug controls (lil-gui) and panel checkboxes for dataset visibility
-    this.datasetVisibility = {};
     for (const dataset of Object.keys(this.byDataset)) {
-      this.datasetVisibility[dataset] = true;
+      if (this.datasetVisibility[dataset] === undefined) {
+        this.datasetVisibility[dataset] = true;
+      }
       const setVisible = (value) => {
         this.datasetVisibility[dataset] = value;
         this.byDataset[dataset].forEach((lionPath) => lionPath.setVisible(value));
@@ -93,10 +100,14 @@ export default class World {
         .onChange(setVisible);
       const box = document.getElementById(`track-${dataset}`);
       if (box) {
-        box.checked = true;
+        box.checked = this.datasetVisibility[dataset];
         box.addEventListener("change", () => setVisible(box.checked));
       }
     }
+
+    document.getElementById("reset-view")?.addEventListener("click", () => {
+      this.frameDataset(this.focusDataset);
+    });
 
     const setVoxels = (value) => {
       this.voxelsVisible = value;
@@ -127,6 +138,20 @@ export default class World {
     );
     this.intersectionSphere.visible = false;
     this.scene.add(this.intersectionSphere);
+  }
+
+  /**
+   * Aim the desktop camera (and the XR start pose) at one dataset's
+   * bounding box so the page opens zoomed into the home range.
+   */
+  frameDataset(dataset) {
+    const paths = (this.byDataset[dataset] || []).filter((p) => p.points);
+    if (paths.length === 0) return;
+    const box = new THREE.Box3();
+    for (const lionPath of paths) {
+      for (const p of lionPath.points) box.expandByPoint(p);
+    }
+    this.experience.frameBox(box);
   }
 
   /**

@@ -7,6 +7,13 @@ import { Path } from "../brahma/Brahma.js";
  * wrapper, hover colours, the hover marker) is inherited unchanged.
  */
 export default class SelectablePath extends Path {
+  // Path.raycast ignores visibility, so a hidden track could still be
+  // picked; skip it entirely when it isn't shown.
+  raycast(raycaster, intersects) {
+    if (!this.visible) return;
+    super.raycast(raycaster, intersects);
+  }
+
   onSelect(location) {
     if (this.marker) {
       this.setSphere(location);

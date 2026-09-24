@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta property="og:title" content="Lions of the Santa Cruz Mountains" />
+    <meta property="og:title" content="VR visualization of mountain lion rest sites in the Santa Cruz Mountains" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://smrghsh.github.io/lions/" />
-    <title>Lions</title>
+    <title>Mountain lion rest sites · Santa Cruz Mountains</title>
 
     <link rel="icon" href="./xrss.ico" />
   </head>
@@ -31,40 +31,67 @@
       <canvas id="graph-step" width="200" height="100"></canvas>
     </div>
 
-    <div id="panel">
-      <div class="panel-title">Puma 164M · Santa Cruz Mountains</div>
-      <div class="panel-hint">
-        Click a cube or track for its callout · ← → scrub fixes · drag to orbit
-      </div>
+    <div id="panel" class="expanded">
+      <button id="panel-toggle" type="button" aria-expanded="true">
+        <span class="panel-title">VR visualization of the mountain lion rest sites in the Santa Cruz Mountains</span>
+        <span class="panel-chevron" aria-hidden="true">⌃</span>
+      </button>
+      <div class="panel-body">
+        <div class="panel-hint">
+          Tap a cube or track for its callout · ← → scrub fixes · drag to orbit, pinch to zoom
+        </div>
 
-      <div class="panel-section">
-        <label class="panel-row">
-          <span>Track colour</span>
-          <select id="color-mode">
-            <option value="state">Movement state</option>
-            <option value="speed">Speed (km/h)</option>
-          </select>
-        </label>
-        <div id="key"></div>
-      </div>
+        <div class="panel-section">
+          <label class="panel-row">
+            <span>Track colour</span>
+            <select id="color-mode">
+              <option value="state">Movement state</option>
+              <option value="speed">Speed (km/h)</option>
+            </select>
+          </label>
+          <div id="key"></div>
+        </div>
 
-      <div class="panel-section">
-        <div class="panel-label">Tracks</div>
-        <label><input type="checkbox" id="track-164M-4hr" checked /> 4 hr fixes (Dec 2024 – Jul 2026)</label>
-        <label><input type="checkbox" id="track-164M-5min" checked /> 5 min fixes (Mar – Jun 2025)</label>
-        <label><input type="checkbox" id="layer-voxels" checked /> Cube at every fix</label>
-      </div>
+        <div class="panel-section">
+          <div class="panel-label">Tracks</div>
+          <label><input type="checkbox" id="track-164M-5min" checked /> 5 min fixes (Mar – Jun 2025)</label>
+          <label><input type="checkbox" id="track-164M-4hr" /> 4 hr fixes (Dec 2024 – Jul 2026)</label>
+          <label><input type="checkbox" id="layer-voxels" checked /> Cube at every fix</label>
+        </div>
 
-      <div class="panel-section">
-        <div class="panel-label">Terrain layers</div>
-        <label><input type="checkbox" id="layer-satellite" /> Satellite imagery (USGS NAIP)</label>
-        <label><input type="checkbox" id="layer-hillshade" /> NOAA topo-bathy hillshade</label>
-        <label><input type="checkbox" id="layer-relief" /> Relief shading</label>
-        <label><input type="checkbox" id="layer-contours" /> Contours (100 m)</label>
-        <label><input type="checkbox" id="layer-sea" /> Sea tint</label>
-        <label><input type="checkbox" id="layer-rest" /> Rest-site probability</label>
+        <div class="panel-section">
+          <div class="panel-label">Terrain layers</div>
+          <label><input type="checkbox" id="layer-rest" /> Rest-site probability</label>
+          <label><input type="checkbox" id="layer-satellite" /> Satellite imagery (USGS NAIP)</label>
+          <label><input type="checkbox" id="layer-hillshade" /> NOAA topo-bathy hillshade</label>
+          <label><input type="checkbox" id="layer-relief" /> Relief shading</label>
+          <label><input type="checkbox" id="layer-contours" /> Contours (100 m)</label>
+          <label><input type="checkbox" id="layer-sea" /> Sea tint</label>
+        </div>
+
+        <div class="panel-section panel-actions">
+          <button id="reset-view" type="button">Reset view</button>
+        </div>
       </div>
     </div>
+    <script>
+      // Collapsible bottom sheet; starts collapsed on phones so the map is visible.
+      (function () {
+        const panel = document.getElementById("panel");
+        const toggle = document.getElementById("panel-toggle");
+        const mobile = window.matchMedia("(max-width: 720px)").matches;
+        const setOpen = (open) => {
+          panel.classList.toggle("expanded", open);
+          panel.classList.toggle("collapsed", !open);
+          toggle.setAttribute("aria-expanded", String(open));
+        };
+        setOpen(!mobile);
+        toggle.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setOpen(!panel.classList.contains("expanded"));
+        });
+      })();
+    </script>
     <script type="module" src="./script.js"></script>
     <script></script>
   </body>

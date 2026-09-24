@@ -33952,7 +33952,7 @@ class Topobath {
       // 100 m contour lines
       sea: true,
       // tint below sea level
-      rest: false
+      rest: true
       // rest-site probability overlay (RestMap)
     };
     const centerLat = this.tileYToLat(this.originTileY + this.numRows / 2);
@@ -34828,6 +34828,12 @@ class LineMaterial2 extends ShaderMaterial {
   }
 }
 class SelectablePath extends Path2 {
+  // Path.raycast ignores visibility, so a hidden track could still be
+  // picked; skip it entirely when it isn't shown.
+  raycast(raycaster, intersects2) {
+    if (!this.visible) return;
+    super.raycast(raycaster, intersects2);
+  }
   onSelect(location) {
     var _a2;
     if (this.marker) {
@@ -34937,7 +34943,7 @@ class LionPath {
     this.name = name;
     this.dataset = name.replace(/-[A-Z]$/, "");
     this.ready = lionData.then((data) => {
-      var _a2;
+      var _a2, _b2;
       const topobath = this.experience.world.topobath;
       const isValid = (entry) => isFinite(entry.Lat) && isFinite(entry.Long) && topobath.isInBounds(entry.Lat, entry.Long);
       let validCount = 0;
@@ -35028,6 +35034,8 @@ class LionPath {
       this.experience.world.scene.add(this.path);
       this.voxels = new FixVoxels(this);
       this.experience.world.scene.add(this.voxels);
+      const world = this.experience.world;
+      this.setVisible(((_b2 = world.datasetVisibility) == null ? void 0 : _b2[this.dataset]) !== false);
       return this;
     });
   }
@@ -36630,7 +36638,7 @@ class World {
     this.ready = true;
   }
   loadLionPaths() {
-    var _a2;
+    var _a2, _b2;
     const lionDataArray = ["164M-4hr-A", "164M-5min-A"];
     this.byDataset = {
       "164M-4hr": [],
@@ -36650,12 +36658,16 @@ class World {
     console.log(
       `Loaded lion paths: ` + Object.entries(this.byDataset).map(([k, v]) => `${v.length} ${k}`).join(", ")
     );
+    this.datasetVisibility = { "164M-4hr": false, "164M-5min": true };
+    this.focusDataset = "164M-5min";
     Promise.all(this.lionPaths.map((p) => p.ready)).then(() => {
       this.restMap = new RestMap(this.lionPaths);
+      this.frameDataset(this.focusDataset);
     });
-    this.datasetVisibility = {};
     for (const dataset of Object.keys(this.byDataset)) {
-      this.datasetVisibility[dataset] = true;
+      if (this.datasetVisibility[dataset] === void 0) {
+        this.datasetVisibility[dataset] = true;
+      }
       const setVisible = (value) => {
         this.datasetVisibility[dataset] = value;
         this.byDataset[dataset].forEach((lionPath) => lionPath.setVisible(value));
@@ -36663,10 +36675,13 @@ class World {
       this.debugFolder.add(this.datasetVisibility, dataset).name(`Show ${dataset}`).listen().onChange(setVisible);
       const box = document.getElementById(`track-${dataset}`);
       if (box) {
-        box.checked = true;
+        box.checked = this.datasetVisibility[dataset];
         box.addEventListener("change", () => setVisible(box.checked));
       }
     }
+    (_a2 = document.getElementById("reset-view")) == null ? void 0 : _a2.addEventListener("click", () => {
+      this.frameDataset(this.focusDataset);
+    });
     const setVoxels = (value) => {
       this.voxelsVisible = value;
       this.lionPaths.forEach(
@@ -36679,7 +36694,7 @@ class World {
       voxelBox.checked = true;
       voxelBox.addEventListener("change", () => setVoxels(voxelBox.checked));
     }
-    (_a2 = document.getElementById("panel")) == null ? void 0 : _a2.addEventListener("click", (e) => {
+    (_b2 = document.getElementById("panel")) == null ? void 0 : _b2.addEventListener("click", (e) => {
       e.stopPropagation();
     });
     this.intersectionSphere = new Mesh(
@@ -36688,6 +36703,19 @@ class World {
     );
     this.intersectionSphere.visible = false;
     this.scene.add(this.intersectionSphere);
+  }
+  /**
+   * Aim the desktop camera (and the XR start pose) at one dataset's
+   * bounding box so the page opens zoomed into the home range.
+   */
+  frameDataset(dataset) {
+    const paths = (this.byDataset[dataset] || []).filter((p) => p.points);
+    if (paths.length === 0) return;
+    const box = new Box3();
+    for (const lionPath of paths) {
+      for (const p of lionPath.points) box.expandByPoint(p);
+    }
+    this.experience.frameBox(box);
   }
   /**
    * Parse a CSV that Resources already fetched (sources.js lists every
@@ -36937,9 +36965,43 @@ class Experience extends EventEmitter {
       mouse.y = -(event.clientY / sizes.height) * 2 + 1;
       this.pointer.setSource("camera", { camera: this.camera.instance, mouse });
     });
-    window.addEventListener("click", () => {
+    window.addEventListener("click", (event) => {
+      if (this._lastTapTime && Date.now() - this._lastTapTime < 500) return;
       this.pointer.select();
     });
+    let touchStart = null;
+    window.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (event.pointerType !== "touch") return;
+        touchStart = { x: event.clientX, y: event.clientY, t: Date.now() };
+      },
+      { passive: true }
+    );
+    window.addEventListener(
+      "pointerup",
+      (event) => {
+        var _a2, _b2;
+        if (event.pointerType !== "touch" || !touchStart || !this.camera) return;
+        const moved = Math.hypot(
+          event.clientX - touchStart.x,
+          event.clientY - touchStart.y
+        );
+        const held = Date.now() - touchStart.t;
+        touchStart = null;
+        if (moved > 12 || held > 400) return;
+        if ((_b2 = (_a2 = event.target).closest) == null ? void 0 : _b2.call(_a2, "#panel, .lil-gui, button")) return;
+        const mouse = new Vector2(
+          event.clientX / window.innerWidth * 2 - 1,
+          -(event.clientY / window.innerHeight) * 2 + 1
+        );
+        this.pointer.setSource("camera", { camera: this.camera.instance, mouse });
+        this.pointer.hover();
+        this.pointer.select();
+        this._lastTapTime = Date.now();
+      },
+      { passive: true }
+    );
     this.arrowKeyLastScrubTime = 0;
     this.arrowKeyScrubDelay = 100;
     window.addEventListener("keydown", (event) => {
@@ -37027,6 +37089,27 @@ class Experience extends EventEmitter {
       this.update();
     });
   }
+  /**
+   * Frame a world-space Box3: orbit target on its centre, camera pulled
+   * back along a south-west, elevated direction far enough to see it all,
+   * and the XR start pose hovering over the same centre.
+   */
+  frameBox(box) {
+    const center = box.getCenter(new Vector3());
+    const size = box.getSize(new Vector3());
+    const radius = Math.max(size.x, size.z) / 2 || 5;
+    const fov2 = this.camera.instance.fov * Math.PI / 180;
+    const distance = radius / Math.tan(fov2 / 2) * 0.95;
+    const direction = new Vector3(-0.45, 0.6, 0.7).normalize();
+    this.camera.controls.target.copy(center);
+    this.camera.instance.position.copy(center).addScaledVector(direction, distance);
+    this.camera.controls.update();
+    this.xrStartPosition.set(center.x, center.y + 1.8, center.z + radius * 0.6);
+    this.controller.locomotion.floors = [
+      this.xrStartPosition.y,
+      this.xrStartPosition.y + 3
+    ];
+  }
   /** Continuous colour for a speed in km/h (viridis, clamped to speedColorMax). */
   speedColor(kmh, target = new Color()) {
     const stops = this.viridisStops;
@@ -37078,4 +37161,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-C6EgN2Ve.js.map
+//# sourceMappingURL=index-DvsZdQrh.js.map
