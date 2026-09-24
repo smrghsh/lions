@@ -32,6 +32,8 @@ export default class Experience extends EventEmitter {
 
     this.canvas = canvas;
     this.debug = new Debug();
+    // start the lil-gui debug panel folded to its title bar
+    if (this.debug.active) this.debug.ui.close();
     this.user = new User();
     /* Selectable Objects */
     this.selectableObjects = [];

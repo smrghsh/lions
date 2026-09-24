@@ -75,17 +75,16 @@
       </div>
     </div>
     <script>
-      // Collapsible bottom sheet; starts collapsed on phones so the map is visible.
+      // Collapsible bottom sheet; starts collapsed so the map is unobstructed.
       (function () {
         const panel = document.getElementById("panel");
         const toggle = document.getElementById("panel-toggle");
-        const mobile = window.matchMedia("(max-width: 720px)").matches;
         const setOpen = (open) => {
           panel.classList.toggle("expanded", open);
           panel.classList.toggle("collapsed", !open);
           toggle.setAttribute("aria-expanded", String(open));
         };
-        setOpen(!mobile);
+        setOpen(false);
         toggle.addEventListener("click", (e) => {
           e.stopPropagation();
           setOpen(!panel.classList.contains("expanded"));

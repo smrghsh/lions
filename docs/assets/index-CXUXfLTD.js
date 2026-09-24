@@ -36919,6 +36919,7 @@ class Experience extends EventEmitter {
     window.experience = this;
     this.canvas = canvas;
     this.debug = new Debug();
+    if (this.debug.active) this.debug.ui.close();
     this.user = new User();
     this.selectableObjects = [];
     this.movementStateColors = [
@@ -37170,4 +37171,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-BxfsVUav.js.map
+//# sourceMappingURL=index-CXUXfLTD.js.map
