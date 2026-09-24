@@ -34828,8 +34828,15 @@ class LineMaterial2 extends ShaderMaterial {
   }
 }
 class SelectablePath extends Path2 {
-  // Path.raycast ignores visibility, so a hidden track could still be
-  // picked; skip it entirely when it isn't shown.
+  constructor(...args) {
+    super(...args);
+    const lineRaycast = this.line.raycast.bind(this.line);
+    this.line.raycast = (raycaster, intersects2) => {
+      if (this.visible) lineRaycast(raycaster, intersects2);
+    };
+    if (this.marker) this.marker.raycast = () => {
+    };
+  }
   raycast(raycaster, intersects2) {
     if (!this.visible) return;
     super.raycast(raycaster, intersects2);
@@ -34882,6 +34889,8 @@ class FixVoxels extends InstancedMesh {
     );
     this.highlight.renderOrder = 998;
     this.highlight.visible = false;
+    this.highlight.raycast = () => {
+    };
     this.add(this.highlight);
   }
   raycast(raycaster, intersects2) {
@@ -37161,4 +37170,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-DvsZdQrh.js.map
+//# sourceMappingURL=index-BxfsVUav.js.map

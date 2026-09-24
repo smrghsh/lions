@@ -48,6 +48,7 @@ export default class FixVoxels extends THREE.InstancedMesh {
     );
     this.highlight.renderOrder = 998;
     this.highlight.visible = false;
+    this.highlight.raycast = () => {}; // never let the frame steal the pick
     this.add(this.highlight);
   }
 
