@@ -152,6 +152,7 @@ export default class Topobath {
    */
   addPatch(config) {
     const patch = new Topobath(config, this);
+    patch.onTileProgress = this.onTileProgress;
     this.patches.push(patch);
     this.ready = this.ready
       .then(() => patch.loadBathy())
@@ -204,6 +205,12 @@ export default class Topobath {
       });
     };
 
+    const total = this.numCols * this.numRows * 2;
+    let loaded = 0;
+    const tick = () => {
+      loaded++;
+      this.onTileProgress?.(loaded, total);
+    };
     for (let x = this.originTileX; x < this.originTileX + this.numCols; x++) {
       let j = 0;
       tilesTerrain[i] = [];
@@ -215,9 +222,11 @@ export default class Topobath {
         promises.push(
           loadNumericImage(`${c.terrainDir}/Terrarium-${x}-${y}.png`).then((img) => {
             tilesTerrain[ii][jj] = img;
+            tick();
           }),
           loadImage(`${c.colorDir}/USGS-${x}-${y}.${c.colorExt}`).then((img) => {
             tilesColor[ii][jj] = img;
+            tick();
           })
         );
         j++;

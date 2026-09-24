@@ -31,6 +31,13 @@ export default class Experience extends EventEmitter {
     window.experience = this;
 
     this.canvas = canvas;
+
+    // Loading overlay. brahma's Resources hides #loading once the small
+    // sources (sky, font, CSVs) are in; World re-shows it and drives the
+    // bar through terrain tiles, the detail patch, tracks and the rest map.
+    this.loadingEl = document.getElementById("loading");
+    this.loadingSteps = { done: 0, total: 1 };
+
     // Phones, tablets and standalone headsets: lighter meshes and textures
     this.lowPower =
       window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900;
@@ -284,6 +291,23 @@ export default class Experience extends EventEmitter {
     this.time.on("tick", () => {
       this.update();
     });
+  }
+
+  /** Show the overlay with a message; fraction 0..1 fills the bar. */
+  setLoading(text, fraction) {
+    const el = this.loadingEl;
+    if (!el) return;
+    el.style.display = "";
+    const t = el.querySelector(".loading-text");
+    if (t && text !== undefined) t.textContent = text;
+    const f = el.querySelector(".loading-fill");
+    if (f && fraction !== undefined) {
+      f.style.width = `${Math.round(Math.min(Math.max(fraction, 0), 1) * 100)}%`;
+    }
+  }
+
+  hideLoading() {
+    if (this.loadingEl) this.loadingEl.style.display = "none";
   }
 
   /**

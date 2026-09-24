@@ -23,11 +23,30 @@ export default class World {
     // Wait for resources
 
     this.resources.on("ready", () => {
+      // Resources hid the overlay; keep it up until the terrain, the
+      // detail patch, the tracks and the rest map are all in.
+      this.experience.setLoading("loading terrain tiles…", 0);
       this.topobath = new Topobath();
       // z14 terrain + z15 imagery nested over the 5 min home range
       this.topobath.addPatch(HOMERANGE_PATCH);
+      // tile progress fills the first 70 % of the bar
+      const tileTotal =
+        (this.topobath.numCols * this.topobath.numRows +
+          HOMERANGE_PATCH.numCols * HOMERANGE_PATCH.numRows) *
+        2;
+      let tilesDone = 0;
+      const onTile = () => {
+        tilesDone++;
+        this.experience.setLoading(
+          `loading terrain tiles… ${tilesDone} / ${tileTotal}`,
+          (0.7 * tilesDone) / tileTotal
+        );
+      };
+      this.topobath.onTileProgress = onTile;
+      this.topobath.patches.forEach((p) => (p.onTileProgress = onTile));
       this.topobath.ready.then(() => {
         console.log("topobath promise resolved");
+        this.experience.setLoading("placing tracks on the terrain…", 0.8);
         this.loadLionPaths();
       });
       this.environment = new Environment();
@@ -82,8 +101,14 @@ export default class World {
 
     // Rest-site probability surface needs every track parsed first
     Promise.all(this.lionPaths.map((p) => p.ready)).then(() => {
-      this.restMap = new RestMap(this.lionPaths);
-      this.frameDataset(this.focusDataset);
+      this.experience.setLoading("computing rest-site probability…", 0.92);
+      // let the overlay repaint before the KDE blocks the main thread
+      setTimeout(() => {
+        this.restMap = new RestMap(this.lionPaths);
+        this.frameDataset(this.focusDataset);
+        this.experience.setLoading("ready", 1);
+        this.experience.hideLoading();
+      }, 30);
     });
 
     // Add debug controls (lil-gui) and panel checkboxes for dataset visibility

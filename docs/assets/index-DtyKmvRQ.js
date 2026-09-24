@@ -34024,6 +34024,7 @@ class Topobath {
    */
   addPatch(config) {
     const patch = new Topobath(config, this);
+    patch.onTileProgress = this.onTileProgress;
     this.patches.push(patch);
     this.ready = this.ready.then(() => patch.loadBathy()).then(() => {
       this.cutHole(patch);
@@ -34063,6 +34064,13 @@ class Topobath {
         premultiplyAlpha: "none"
       });
     };
+    const total = this.numCols * this.numRows * 2;
+    let loaded = 0;
+    const tick = () => {
+      var _a2;
+      loaded++;
+      (_a2 = this.onTileProgress) == null ? void 0 : _a2.call(this, loaded, total);
+    };
     for (let x = this.originTileX; x < this.originTileX + this.numCols; x++) {
       let j = 0;
       tilesTerrain[i] = [];
@@ -34074,9 +34082,11 @@ class Topobath {
         promises.push(
           loadNumericImage(`${c.terrainDir}/Terrarium-${x}-${y}.png`).then((img) => {
             tilesTerrain[ii][jj] = img;
+            tick();
           }),
           loadImage(`${c.colorDir}/USGS-${x}-${y}.${c.colorExt}`).then((img) => {
             tilesColor[ii][jj] = img;
+            tick();
           })
         );
         j++;
@@ -36864,10 +36874,23 @@ class World {
     this.debugFolder = this.debug.ui.addFolder("world");
     this.ready = false;
     this.resources.on("ready", () => {
+      this.experience.setLoading("loading terrain tiles…", 0);
       this.topobath = new Topobath();
       this.topobath.addPatch(HOMERANGE_PATCH);
+      const tileTotal = (this.topobath.numCols * this.topobath.numRows + HOMERANGE_PATCH.numCols * HOMERANGE_PATCH.numRows) * 2;
+      let tilesDone = 0;
+      const onTile = () => {
+        tilesDone++;
+        this.experience.setLoading(
+          `loading terrain tiles… ${tilesDone} / ${tileTotal}`,
+          0.7 * tilesDone / tileTotal
+        );
+      };
+      this.topobath.onTileProgress = onTile;
+      this.topobath.patches.forEach((p) => p.onTileProgress = onTile);
       this.topobath.ready.then(() => {
         console.log("topobath promise resolved");
+        this.experience.setLoading("placing tracks on the terrain…", 0.8);
         this.loadLionPaths();
       });
       this.environment = new Environment();
@@ -36904,8 +36927,13 @@ class World {
     this.datasetVisibility = { "164M-4hr": false, "164M-5min": true };
     this.focusDataset = "164M-5min";
     Promise.all(this.lionPaths.map((p) => p.ready)).then(() => {
-      this.restMap = new RestMap(this.lionPaths);
-      this.frameDataset(this.focusDataset);
+      this.experience.setLoading("computing rest-site probability…", 0.92);
+      setTimeout(() => {
+        this.restMap = new RestMap(this.lionPaths);
+        this.frameDataset(this.focusDataset);
+        this.experience.setLoading("ready", 1);
+        this.experience.hideLoading();
+      }, 30);
     });
     for (const dataset of Object.keys(this.byDataset)) {
       if (this.datasetVisibility[dataset] === void 0) {
@@ -37152,6 +37180,8 @@ class Experience extends EventEmitter {
     instance = this;
     window.experience = this;
     this.canvas = canvas;
+    this.loadingEl = document.getElementById("loading");
+    this.loadingSteps = { done: 0, total: 1 };
     this.lowPower = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900;
     this.debug = new Debug();
     if (this.debug.active) this.debug.ui.close();
@@ -37344,6 +37374,21 @@ class Experience extends EventEmitter {
       this.update();
     });
   }
+  /** Show the overlay with a message; fraction 0..1 fills the bar. */
+  setLoading(text, fraction) {
+    const el = this.loadingEl;
+    if (!el) return;
+    el.style.display = "";
+    const t = el.querySelector(".loading-text");
+    if (t && text !== void 0) t.textContent = text;
+    const f = el.querySelector(".loading-fill");
+    if (f && fraction !== void 0) {
+      f.style.width = `${Math.round(Math.min(Math.max(fraction, 0), 1) * 100)}%`;
+    }
+  }
+  hideLoading() {
+    if (this.loadingEl) this.loadingEl.style.display = "none";
+  }
   /**
    * Frame a world-space Box3: orbit target on its centre, camera pulled
    * back along a south-west, elevated direction far enough to see it all,
@@ -37416,4 +37461,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-CJXHhYIp.js.map
+//# sourceMappingURL=index-DtyKmvRQ.js.map
