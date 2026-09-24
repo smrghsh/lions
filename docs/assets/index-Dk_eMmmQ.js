@@ -37171,4 +37171,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-CXUXfLTD.js.map
+//# sourceMappingURL=index-Dk_eMmmQ.js.map
